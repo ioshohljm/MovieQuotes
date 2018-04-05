@@ -7,17 +7,18 @@
 //
 
 import UIKit
-
+import CoreData
 class MovieQuotesTableViewController: UITableViewController {
 
+    var context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     let movieQuoteCellIdentifier = "MovieQuoteCell"
     let noMovieQuotesCellIdentifier = "NoMovieQuotesCell"
+    let showDetailSegueIdentifier = "ShowDetailSegue"
 //    let names = ["Justin","Ryan", "Kelly", "Sidney"]
     var movieQuotes = [MovieQuote]()
     override func viewDidLoad() {
         super.viewDidLoad()
-        movieQuotes.append(MovieQuote(quote: "Ill be back", movie: "Terminator"))
-        movieQuotes.append(MovieQuote(quote: "Yo Adrian" , movie: "Rocky"))
+        
         // Uncomment the following line to preserve selection between presentations
         // self.clearsSelectionOnViewWillAppear = false
 
@@ -25,7 +26,15 @@ class MovieQuotesTableViewController: UITableViewController {
          self.navigationItem.leftBarButtonItem = self.editButtonItem
         navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(showAddDialog))
     }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        self.updateMovieQuoteArray()
+        tableView.reloadData()
+    }
     
+    func save() {
+        (UIApplication.shared.delegate as! AppDelegate).saveContext()
+    }
     @objc func showAddDialog(){
         let alertController = UIAlertController(title: "Create a new movie quote",
                                                 message: "", preferredStyle: .alert)
@@ -42,23 +51,20 @@ class MovieQuotesTableViewController: UITableViewController {
                                          handler: nil)
         
         
-        let createQuote = UIAlertAction(title: "Create",
+        let createQuote = UIAlertAction(
+            title: "Create",
                                         style: .default) { (action) in
                                             let quoteTextField = alertController.textFields![0]
                                             let movieTextField = alertController.textFields![1]
-                                            let movieQyote = MovieQuote(quote: quoteTextField.text!, movie: movieTextField.text!)
-                                            self.movieQuotes.insert(movieQyote, at: 0)
-                                            
-                                            if self.movieQuotes.count == 1 {
-                                                self.tableView.reloadData()
-                                            }else{
-                                                 self.tableView.insertRows(at: [IndexPath(row:0, section: 0)], with: UITableViewRowAnimation.top)
-                                                self.tableView.reloadData()
-                                            }
-                                            
-                                           
-                                            
-                                            
+                                            // TODO add context
+                                            let newMovieQuote = MovieQuote(context: self.context)
+                                            newMovieQuote.quote = quoteTextField.text
+                                            newMovieQuote.movie = movieTextField.text
+                                            newMovieQuote.created = Date()
+                                            self.save()
+                                            self.updateMovieQuoteArray()
+                                            self.tableView.reloadData()
+                              
         }
         
         alertController.addAction(createQuote)
@@ -67,6 +73,17 @@ class MovieQuotesTableViewController: UITableViewController {
         
     }
 
+    func updateMovieQuoteArray(){
+        //make fetch request
+        //execute request in try catch
+        let request: NSFetchRequest<MovieQuote> = MovieQuote.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(key: "created", ascending: false)]
+        do{
+            movieQuotes = try context.fetch(request)
+        } catch{
+           fatalError("Unresolved Core Dta error \(error)")
+        }
+    }
     
 //    makes it so edit cnnot be clicked while nothing can be deleted
     override func setEditing(_ editing: Bool, animated: Bool) {
@@ -124,7 +141,11 @@ class MovieQuotesTableViewController: UITableViewController {
         
         if editingStyle == .delete {
             // Delete the row from the data source
-            movieQuotes.remove(at: indexPath.row)
+            context.delete(movieQuotes[indexPath.row])
+            save()
+            updateMovieQuoteArray()
+            
+//            movieQuotes.remove(at: indexPath.row)
             if movieQuotes.count == 0 {
                 tableView.reloadData()
             }else{
@@ -152,14 +173,19 @@ class MovieQuotesTableViewController: UITableViewController {
     }
     */
 
-    /*
+   
     // MARK: - Navigation
 
     // In a storyboard-based application, you will often want to do a little preparation before navigation
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        if segue.identifier == showDetailSegueIdentifier {
+            if let indexPath = tableView.indexPathForSelectedRow{
+                (segue.destination as! MovieQuoteDetailViewController).movieQuote = movieQuotes[indexPath.row]
+            }
+        }
         // Get the new view controller using segue.destinationViewController.
         // Pass the selected object to the new view controller.
     }
-    */
+    
 
 }
